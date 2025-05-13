@@ -83,6 +83,13 @@ cython_debug/
 # CSV files
 *.csv
 
+#json files
+*.json
+
+# yaml files
+*.yaml
+*.yml
+
 # NIfTI files
 *.nii
 *.nii.gz
