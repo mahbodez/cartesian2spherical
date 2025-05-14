@@ -30,6 +30,7 @@ def cartesian_to_spherical(
     equal_area_phi: bool = True,
     pad_mode: str = "constant",
     cval: float | str = 0.0,
+    is_mask: bool = False,
 ):
     """
     Parameters
@@ -48,6 +49,8 @@ def cartesian_to_spherical(
         spaced in φ.
     pad_mode, cval : str, float
         Boundary handling for `map_coordinates`.
+    is_mask : bool
+        If True, treat input as a mask and use nearest-neighbor interpolation.
     Returns
     -------
     sph : (R, Φ, Θ) ndarray
@@ -74,6 +77,9 @@ def cartesian_to_spherical(
             cval = np.max(vol)
         else:
             raise ValueError(f"Unknown cval: {cval}")
+
+    # adjust interpolation for mask: use nearest-neighbor
+    interp_order_used = 0 if is_mask else interp_order
 
     # --- replace the old “inside‐cube” radius with a corner‐to‐center radius ---
     # compute distance to each of the 8 corners, then take the maximum
@@ -108,7 +114,7 @@ def cartesian_to_spherical(
     sph = map_coordinates(
         vol,
         coords,
-        order=interp_order,
+        order=interp_order_used,
         mode=pad_mode,
         cval=cval,
     ).reshape(r_bins, phi_bins, theta_bins)
@@ -122,7 +128,11 @@ def cartesian_to_spherical(
         equal_area_phi=equal_area_phi,
         orig_shape=vol.shape,  # <-- add this
     )
-    return sph.astype(vol.dtype, copy=False), grid_meta
+    if not is_mask:
+        output = sph.astype(vol.dtype, copy=False), grid_meta
+    else:
+        output = sph.astype(np.uint8, copy=False), grid_meta
+    return output
 
 
 # ------------------------------------------------------------------------------
@@ -135,6 +145,7 @@ def spherical_to_cartesian(
     interp_order: int = 3,
     pad_mode: str = "constant",
     cval: float | str = 0.0,
+    is_mask: bool = False,
     **kwargs,
 ):
     """
@@ -166,6 +177,9 @@ def spherical_to_cartesian(
             cval = np.max(sph)
         else:
             raise ValueError(f"Unknown cval: {cval}")
+
+    # adjust interpolation for mask: use nearest-neighbor
+    interp_order_used = 0 if is_mask else interp_order
 
     # Bin edges are as in forward mapping
     r_centres = np.linspace(0.0, r_max, R, dtype=np.float32)
@@ -218,7 +232,7 @@ def spherical_to_cartesian(
     recon = map_coordinates(
         sph,
         coords,
-        order=interp_order,
+        order=interp_order_used,
         mode=pad_mode,
         cval=cval,
     ).reshape(cart_shape)
@@ -230,7 +244,11 @@ def spherical_to_cartesian(
         recon_flat[center_mask] = center_value
         recon = recon_flat.reshape(cart_shape)
 
-    return recon.astype(sph.dtype, copy=False)
+    if not is_mask:
+        output = recon.astype(sph.dtype, copy=False)
+    else:
+        output = recon.astype(np.uint8, copy=False)
+    return output
 
 
 def nifti_to_spherical(
@@ -245,6 +263,7 @@ def nifti_to_spherical(
     equal_area_phi: bool = True,
     pad_mode: str = "constant",
     cval: float | str = 0.0,
+    is_mask: bool = False,
     **kwargs,
 ):
     """
@@ -275,6 +294,7 @@ def nifti_to_spherical(
         equal_area_phi=equal_area_phi,
         pad_mode=pad_mode,
         cval=cval,
+        is_mask=is_mask,
     )
 
     # save spherical data
@@ -303,6 +323,7 @@ def spherical_to_nifti(
     interp_order: int = 3,
     pad_mode: str = "constant",
     cval: float = 0.0,
+    is_mask: bool = False,
 ):
     """
     Load a spherical NIfTI, map it to Cartesian coords, then save:
@@ -326,6 +347,7 @@ def spherical_to_nifti(
         interp_order=interp_order,
         pad_mode=pad_mode,
         cval=cval,
+        is_mask=is_mask,
     )
 
     # save Cartesian data

@@ -24,7 +24,7 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-A demo script (`demo.py`) is provided:
+A demo script is:
 
 ```python
 from spherical.transforms import (
