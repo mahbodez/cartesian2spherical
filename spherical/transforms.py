@@ -296,9 +296,10 @@ def nifti_to_spherical(
         cval=cval,
         is_mask=is_mask,
     )
+    # preserve original affine for inverse mapping
+    grid_meta["orig_affine"] = affine
 
     # save spherical data
-    # we use an identity affine since spherical coords have no standard voxel-to-world
     save_nifti_file(sph, np.eye(4), None, out_sph_path)
 
     # optionally dump metadata
@@ -337,6 +338,8 @@ def spherical_to_nifti(
     # load metadata
     with open(grid_meta_path, "r") as f:
         grid_meta = json.load(f)
+    # retrieve original affine from metadata (fallback to identity)
+    orig_affine = np.array(grid_meta.get("orig_affine", np.eye(4)))
 
     # inverse transform
     cart_shape = tuple(grid_meta["orig_shape"])  # <-- use the stored original shape
@@ -351,4 +354,4 @@ def spherical_to_nifti(
     )
 
     # save Cartesian data
-    save_nifti_file(vol, np.eye(4), None, out_cart_path)
+    save_nifti_file(vol, orig_affine, None, out_cart_path)
